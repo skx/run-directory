@@ -15,6 +15,7 @@ import (
 var (
 	verbose     *bool
 	exitOnError *bool
+	version     = "unreleased"
 )
 
 // IsExecutable returns true if the given path points to an executable file.
@@ -154,8 +155,17 @@ func main() {
 	// The command-line flags we accept.
 	//
 	verbose = flag.Bool("verbose", false, "Show details of what we're doing")
+	ver := flag.Bool("version", false, "Show our version")
 	exitOnError = flag.Bool("exit-on-error", true, "Exit when the first script fails")
 	flag.Parse()
+
+	//
+	// Show our version
+	//
+	if *ver {
+		fmt.Printf("run-directory %s\n", version)
+		os.Exit(0)
+	}
 
 	//
 	// Ensure we have at least one argument.
