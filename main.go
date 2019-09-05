@@ -10,12 +10,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 // Arguments set by the command-line arguments, along with our version-string.
 var (
-	verbose     *bool
 	exitOnError *bool
+	showTime    *bool
+	verbose     *bool
 	version     = "unreleased"
 )
 
@@ -110,13 +112,23 @@ func RunParts(directory string) {
 		// Show what we're doing.
 		//
 		if *verbose {
-			fmt.Printf("Running %s\n", path)
+			fmt.Printf("%s - launching\n", path)
 		}
+
+		//
+		// Record the start-time.
+		//
+		start := time.Now()
 
 		//
 		// Run the command, capturing output and exit-code
 		//
 		stdout, stderr, exitCode := RunCommand(path)
+
+		//
+		// Record the completion-time
+		//
+		end := time.Now()
 
 		//
 		// Show STDOUT
@@ -130,6 +142,18 @@ func RunParts(directory string) {
 		//
 		if len(stderr) > 0 {
 			fmt.Print(stderr)
+		}
+
+		//
+		// Show the duration, if we should
+		//
+		if *verbose {
+			if *showTime {
+				elapsed := end.Sub(start).Truncate(time.Second)
+				fmt.Printf("%s - completed after %s\n", path, elapsed)
+			} else {
+				fmt.Printf("%s - completed\n", path)
+			}
 		}
 
 		//
@@ -153,9 +177,10 @@ func main() {
 	//
 	// The command-line flags we accept.
 	//
-	verbose = flag.Bool("verbose", false, "Show details of what we're doing")
-	ver := flag.Bool("version", false, "Show our version")
 	exitOnError = flag.Bool("exit-on-error", true, "Exit when the first script fails")
+	showTime = flag.Bool("time", false, "Report elapsed time for all executions")
+	ver := flag.Bool("version", false, "Show our version")
+	verbose = flag.Bool("verbose", false, "Increase verbosity")
 	flag.Parse()
 
 	//
