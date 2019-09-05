@@ -1,3 +1,4 @@
+// run-directory
 package main
 
 import (
@@ -11,7 +12,7 @@ import (
 	"syscall"
 )
 
-// This is set by the command-line arguments
+// Arguments set by the command-line arguments, along with our version-string.
 var (
 	verbose     *bool
 	exitOnError *bool
@@ -63,20 +64,20 @@ func RunCommand(command string) (stdout string, stderr string, exitCode int) {
 	return stdout, stderr, exitCode
 }
 
-// RunParts runs all the executables in the given directory
+// RunParts runs all the executables in the given directory.
 func RunParts(directory string) {
 
 	//
-	// Find the files beneath that directory.
+	// Find the files beneath the named directory.
 	//
 	files, err := ioutil.ReadDir(directory)
 	if err != nil {
-		fmt.Printf("Error reading directory: %s\n", err)
+		fmt.Printf("error reading directory contents %s - %s\n", directory, err)
 		os.Exit(1)
 	}
 
 	//
-	// For each file.
+	// For each file we found.
 	//
 	for _, f := range files {
 
@@ -143,9 +144,7 @@ func RunParts(directory string) {
 				os.Exit(1)
 			}
 		}
-
 	}
-
 }
 
 // main is our entry-point
@@ -160,7 +159,7 @@ func main() {
 	flag.Parse()
 
 	//
-	// Show our version
+	// Show our version?
 	//
 	if *ver {
 		fmt.Printf("run-directory %s\n", version)
