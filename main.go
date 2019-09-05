@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -16,6 +17,7 @@ import (
 // Arguments set by the command-line arguments, along with our version-string.
 var (
 	exitOnError *bool
+	markdown    *bool
 	showTime    *bool
 	verbose     *bool
 	version     = "unreleased"
@@ -134,14 +136,42 @@ func RunParts(directory string) {
 		// Show STDOUT
 		//
 		if len(stdout) > 0 {
-			fmt.Print(stdout)
+
+			//
+			// Indent output if we're running in a CI-environment
+			// which will show.
+			//
+			if *markdown {
+				temp := strings.Split(stdout, "\n")
+				for _, line := range temp {
+					if len(line) > 0 {
+						fmt.Printf("    %s\n", line)
+					}
+				}
+			} else {
+				fmt.Print(stdout)
+			}
 		}
 
 		//
 		// Show STDERR
 		//
 		if len(stderr) > 0 {
-			fmt.Print(stderr)
+
+			//
+			// Indent output if we're running in a CI-environment
+			// which will show.
+			//
+			if *markdown {
+				temp := strings.Split(stderr, "\n")
+				for _, line := range temp {
+					if len(line) > 0 {
+						fmt.Printf("    %s\n", line)
+					}
+				}
+			} else {
+				fmt.Print(stderr)
+			}
 		}
 
 		//
@@ -168,6 +198,7 @@ func RunParts(directory string) {
 				os.Exit(1)
 			}
 		}
+
 	}
 }
 
@@ -178,6 +209,7 @@ func main() {
 	// The command-line flags we accept.
 	//
 	exitOnError = flag.Bool("exit-on-error", true, "Exit when the first script fails")
+	markdown = flag.Bool("markdown", false, "Outdent output for markdown purposes")
 	showTime = flag.Bool("time", false, "Report elapsed time for all executions")
 	ver := flag.Bool("version", false, "Show our version")
 	verbose = flag.Bool("verbose", false, "Increase verbosity")
