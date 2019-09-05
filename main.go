@@ -11,6 +11,12 @@ import (
 	"syscall"
 )
 
+// This is set by the command-line arguments
+var (
+	verbose     *bool
+	exitOnError *bool
+)
+
 // IsExecutable returns true if the given path points to an executable file.
 func IsExecutable(path string) bool {
 	d, err := os.Stat(path)
@@ -21,8 +27,7 @@ func IsExecutable(path string) bool {
 	return false
 }
 
-// RunCommand is a helper to run a command, showing the output
-// and aborting if the exit-code was non-zero
+// RunCommand is a helper to run a command, returning output and the exit-code.
 func RunCommand(command string) (stdout string, stderr string, exitCode int) {
 	var outbuf, errbuf bytes.Buffer
 	cmd := exec.Command(command)
@@ -39,11 +44,12 @@ func RunCommand(command string) (stdout string, stderr string, exitCode int) {
 			ws := exitError.Sys().(syscall.WaitStatus)
 			exitCode = ws.ExitStatus()
 		} else {
-			// This will happen (in OSX) if `name` is not available in $PATH,
-			// in this situation, exit code could not be get, and stderr will be
-			// empty string very likely, so we use the default fail code, and format err
-			// to string and set to stderr
-			exitCode = 0
+			// This will happen (in OSX) if `name` is not
+			// available in $PATH, in this situation, exit
+			// code could not be get, and stderr will be
+			// empty string very likely, so we use the default
+			// fail code, and format err to string and set to stderr
+			exitCode = 1
 			if stderr == "" {
 				stderr = err.Error()
 			}
@@ -56,31 +62,13 @@ func RunCommand(command string) (stdout string, stderr string, exitCode int) {
 	return stdout, stderr, exitCode
 }
 
-func main() {
-
-	//
-	// The command-line flags we accept.
-	//
-	verbose := flag.Bool("verbose", false, "Show details of what we're doing")
-	flag.Parse()
-
-	//
-	// Ensure we have a single argument.
-	//
-	if len(flag.Args()) < 1 {
-		fmt.Printf("Usage: rd <directory>")
-		os.Exit(1)
-	}
-
-	//
-	// Get the directory
-	//
-	input := flag.Args()[0]
+// RunParts runs all the executables in the given directory
+func RunParts(directory string) {
 
 	//
 	// Find the files beneath that directory.
 	//
-	files, err := ioutil.ReadDir(input)
+	files, err := ioutil.ReadDir(directory)
 	if err != nil {
 		fmt.Printf("Error reading directory: %s\n", err)
 		os.Exit(1)
@@ -92,12 +80,12 @@ func main() {
 	for _, f := range files {
 
 		//
-		// Get the path
+		// Get the absolute path to the file.
 		//
-		path := filepath.Join(input, f.Name())
+		path := filepath.Join(directory, f.Name())
 
 		//
-		// Skip dotfiles
+		// We'll skip any dotfiles.
 		//
 		if f.Name()[0] == '.' {
 			if *verbose {
@@ -107,40 +95,85 @@ func main() {
 		}
 
 		//
-		// Is it executable?
+		// We'll skip any non-executable files.
 		//
-		if IsExecutable(path) {
-
-			if *verbose {
-				fmt.Printf("Running %s\n", path)
-			}
-
-			stdout, stderr, exitCode := RunCommand(path)
-
-			//
-			// Show STDOUT
-			//
-			if len(stdout) > 0 {
-				fmt.Print(stdout)
-			}
-
-			//
-			// Show STDERR
-			//
-			if len(stderr) > 0 {
-				fmt.Print(stderr)
-			}
-
-			if exitCode != 0 {
-				fmt.Printf("%s returned non-zero exit-code\n", path)
-				os.Exit(1)
-			}
-
-		} else {
+		if !IsExecutable(path) {
 			if *verbose {
 				fmt.Printf("Skipping non-executable %s\n", path)
 			}
+			continue
 		}
+
+		//
+		// Show what we're doing.
+		//
+		if *verbose {
+			fmt.Printf("Running %s\n", path)
+		}
+
+		//
+		// Run the command, capturing output and exit-code
+		//
+		stdout, stderr, exitCode := RunCommand(path)
+
+		//
+		// Show STDOUT
+		//
+		if len(stdout) > 0 {
+			fmt.Print(stdout)
+		}
+
+		//
+		// Show STDERR
+		//
+		if len(stderr) > 0 {
+			fmt.Print(stderr)
+		}
+
+		//
+		// If the exit-code was non-zero then we have to
+		// terminate.
+		//
+		if exitCode != 0 {
+			if *verbose {
+				fmt.Printf("%s returned non-zero exit-code\n", path)
+			}
+			if *exitOnError {
+				os.Exit(1)
+			}
+		}
+
 	}
 
+}
+
+// main is our entry-point
+func main() {
+
+	//
+	// The command-line flags we accept.
+	//
+	verbose = flag.Bool("verbose", false, "Show details of what we're doing")
+	exitOnError = flag.Bool("exit-on-error", true, "Exit when the first script fails")
+	flag.Parse()
+
+	//
+	// Ensure we have at least one argument.
+	//
+	if len(flag.Args()) < 1 {
+		fmt.Printf("Usage: rd <directory1> [directory2] .. [directoryN]\n")
+		os.Exit(1)
+	}
+
+	//
+	// Process each named directory
+	//
+	for _, entry := range flag.Args() {
+		RunParts(entry)
+	}
+
+	//
+	// Exit with a successfull status-code
+	//
+	os.Exit(0)
 }
